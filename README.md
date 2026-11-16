@@ -1,5 +1,7 @@
 # DMA Lab · 把故障看见
 
+[打开公开学习网站](https://andyzr-coder.github.io/dma-test-lab/)
+
 用中文逐页解释 DMA Lecture 20261110 与 DMA Lecture 20261111 的数字电路测试原理。包含 15 页详细讲解、9 组交互实验、术语表、逐页自测和本地学习进度。
 
 ## 学习内容
