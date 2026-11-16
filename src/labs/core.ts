@@ -60,22 +60,27 @@ export interface SeqInput { x1: Bit | 'X'; x2: Bit | 'X'; }
 export interface SeqPoint {
   index: number; input: SeqInput; before: Pair[]; after: Pair[];
   goodY: Bit[]; faultyY: Bit[]; guaranteedDetection: boolean; possibleDetection: boolean;
+  guaranteedSoFar: boolean; possibleSoFar: boolean;
 }
 function uniquePairs(pairs: Pair[]): Pair[] { return [...new Map(pairs.map(p => [p.join(''), p])).values()]; }
 const choices = (v: Bit | 'X'): Bit[] => v === 'X' ? [0, 1] : [v];
 export function sequential(inputs: SeqInput[], initial: Bit | 'X', fault = true): SeqPoint[] {
   // Same initial state in the good and faulty circuits; uncertainty stays correlated.
-  let states: Pair[] = initial === 'X' ? [[0, 0], [1, 1]] : [[initial, initial]];
+  let histories = (initial === 'X' ? [0, 1] as Bit[] : [initial]).map(s => ({ pair: [s, s] as Pair, seen: false }));
   return inputs.map((input, index) => {
-    const before = states, after: Pair[] = [], goodY: Bit[] = [], faultyY: Bit[] = [], detects: boolean[] = [];
-    for (const [sg, sf] of before) for (const x1 of choices(input.x1)) for (const x2 of choices(input.x2)) {
+    const before = uniquePairs(histories.map(h => h.pair)), goodY: Bit[] = [], faultyY: Bit[] = [], detects: boolean[] = [];
+    const next = new Map<string, { pair: Pair; seen: boolean }>();
+    for (const history of histories) for (const x1 of choices(input.x1)) for (const x2 of choices(input.x2)) {
+      const [sg, sf] = history.pair;
       const yg = bit(x1 * sg), yf = bit(x1 * sf);
       goodY.push(yg); faultyY.push(yf); detects.push(yg !== yf);
       const zg = bit(x2 * sg), zf = fault ? 0 : bit(x2 * sf);
-      after.push([bit(x1 || zg), bit(x1 || zf)]);
+      const pair: Pair = [bit(x1 || zg), bit(x1 || zf)], seen = history.seen || yg !== yf;
+      // Keep the detection flag when merging identical states; it is needed for sequence guarantees.
+      next.set(pair.join('') + Number(seen), { pair, seen });
     }
-    states = uniquePairs(after);
-    return { index, input, before, after: states, goodY: [...new Set(goodY)], faultyY: [...new Set(faultyY)], guaranteedDetection: detects.every(Boolean), possibleDetection: detects.some(Boolean) };
+    histories = [...next.values()];
+    return { index, input, before, after: uniquePairs(histories.map(h => h.pair)), goodY: [...new Set(goodY)], faultyY: [...new Set(faultyY)], guaranteedDetection: detects.every(Boolean), possibleDetection: detects.some(Boolean), guaranteedSoFar: histories.every(h => h.seen), possibleSoFar: histories.some(h => h.seen) };
   });
 }
 export function shortestSequentialTests(maxLength = 4): { length: number; tests: SeqInput[][]; checked: number } {
@@ -85,7 +90,7 @@ export function shortestSequentialTests(maxLength = 4): { length: number; tests:
     for (let n = 0; n < 4 ** length; n++) {
       const input = Array.from({ length }, (_, i) => ({ x1: bit((n >> (i * 2)) & 1), x2: bit((n >> (i * 2 + 1)) & 1) }));
       checked++;
-      if (sequential(input, 'X').some(row => row.guaranteedDetection)) tests.push(input);
+      if (sequential(input, 'X').at(-1)!.guaranteedSoFar) tests.push(input);
     }
     if (tests.length) return { length, tests, checked };
   }

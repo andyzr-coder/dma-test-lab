@@ -64,3 +64,20 @@ test('reconvergent k is identically 1 and learned contrapositive is valid', () =
     if(f===1) assert.equal(a,1);
   }
 });
+
+test('unknown inputs preserve correlations and cumulative guarantees against concrete enumeration', () => {
+  const symbolic = [0,1,'X'] as const;
+  for(let n=0;n<3**6;n++) {
+    let digits=n;
+    const inputs=Array.from({length:3},()=>{const x1=symbolic[digits%3];digits=Math.floor(digits/3);const x2=symbolic[digits%3];digits=Math.floor(digits/3);return {x1,x2};});
+    const concrete=assignments(6).filter(a=>inputs.every((v,i)=>(v.x1==='X'||v.x1===a[2*i])&&(v.x2==='X'||v.x2===a[2*i+1])));
+    const outcomes=concrete.flatMap(a=>([0,1] as const).map(initial=>{
+      let sg:0|1=initial,sf:0|1=initial,seen=false;
+      for(let i=0;i<3;i++) {const x1=a[2*i],x2=a[2*i+1];seen ||= bit(x1*sg)!==bit(x1*sf);sg=bit(x1||(x2*sg));sf=x1;}
+      return seen;
+    }));
+    const actual=sequential(inputs,'X').at(-1)!;
+    assert.equal(actual.guaranteedSoFar,outcomes.every(Boolean));
+    assert.equal(actual.possibleSoFar,outcomes.some(Boolean));
+  }
+});

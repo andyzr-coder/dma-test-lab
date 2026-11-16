@@ -1,0 +1,5 @@
+import type { Quiz as QuizData } from './types';
+import { Prose } from './Math';
+export default function Quiz({quiz,choice,onChoose,number}:{quiz:QuizData;choice?:number;onChoose:(i:number)=>void;number?:number}) {
+  return <div className="quiz"><div className="eyebrow">CHECK YOUR UNDERSTANDING {number!==undefined?`/ ${String(number).padStart(2,'0')}`:''}</div><h3><Prose text={quiz.question}/></h3><div className="quiz-options">{quiz.options.map((option,i)=><button key={i} aria-pressed={choice===i} className={`quiz-option ${choice===i?'selected':''} ${choice!==undefined&&i===quiz.answer?'correct':''}`} onClick={()=>onChoose(i)}><span className="option-letter">{String.fromCharCode(65+i)}</span><span><Prose text={option}/></span>{choice===i&&<span aria-label={i===quiz.answer?'正确':'需要再想想'}>{i===quiz.answer?'✓':'↺'}</span>}</button>)}</div>{choice!==undefined&&<div className={`quiz-feedback ${choice===quiz.answer?'success':''}`} role="status"><strong>{choice===quiz.answer?'理解正确。':'再看一下关键条件。'}</strong><Prose text={quiz.explanation}/></div>}</div>;
+}
